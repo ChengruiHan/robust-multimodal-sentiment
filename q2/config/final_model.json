@@ -1,0 +1,28 @@
+{
+  "model_name": "STATE-MSA",
+  "feature_version": "aligned_50",
+  "text_field": "text_bert",
+  "text_encoder": "bert-base-uncased",
+  "bert_frozen": true,
+  "backbone_variant": "M4",
+  "classification_head": "flat_three_class",
+  "regression_head": "conditional_two_regime",
+  "seeds": [3407, 42, 2026],
+  "ensemble": "equal_mean_class_probabilities_and_clipped_intensities",
+  "class_labels": ["Negative", "Neutral", "Positive"],
+  "intensity_range": [-3, 3],
+  "strong_state_training_threshold": 1.5,
+  "missing_grid": {
+    "subsets": ["T", "A", "V", "T+A", "T+V", "A+V"],
+    "ratios": [0.1, 0.25, 0.4],
+    "positions": ["front", "middle", "end"],
+    "clean_plus_missing_conditions": 55
+  },
+  "weights_sha256": {
+    "seed_3407/best.pt": "b263f0372222c83c42fd8d92a39df13914daadd04acddd40dc9c133b73205120",
+    "seed_42/best.pt": "59f1662e76d036fb426516e5887fad13cea70b4046aafe655521266c1847ad4e",
+    "seed_2026/best.pt": "a3459d94bdc98a32c9dfea001c7d2d6d3098deb3e858a89b8201c51e4fd44c4c",
+    "scaler.npz": "2ea72b942fe005d290b1636a32912cffbc3b7e605da1d5742755addcafa00650"
+  },
+  "bert_model_safetensors_sha256": "68d45e234eb4a928074dfd868cead0219ab85354cc53d20e772753c6bb9169d3"
+}

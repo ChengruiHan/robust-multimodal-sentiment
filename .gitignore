@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local model and data assets
+models/
+weights/
+checkpoints/
+data/
+datasets/
+outputs/
+results/
+*.pt
+*.pth
+*.safetensors
+*.pkl
+*.pickle
+*.npz
+*.mp4
+*.wav
+*.xlsx
+
+# Local configuration and OS files
+.env
+.DS_Store

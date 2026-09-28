@@ -1,0 +1,21 @@
+{
+  "source_dir": "REPLACE_WITH_OFFICIAL_SOURCE_DIR",
+  "labels": "REPLACE_WITH_OFFICIAL_LABEL_XLSX",
+  "output_dir": "REPLACE_WITH_OUTPUT_DIR",
+  "expected_samples": 100,
+  "audio_sample_rate": 16000,
+  "bert_model": "../models/bert-base-uncased",
+  "bert_revision": "86b5e0934494bd15c9632b12f734a8a67f723594",
+  "nltk_data_dir": "../models/nltk_data",
+  "whisperx_language": "en",
+  "whisperx_align_model": null,
+  "device": "cpu",
+  "openface_command": "REPLACE_WITH_OPENFACE_FEATUREEXTRACTION",
+  "openface_confidence_mode": "clipped",
+  "openface_extra_args": ["-q", "-mloc", "model/main_clnf_general.txt"],
+  "ffmpeg_command": "ffmpeg",
+  "ffprobe_command": "ffprobe",
+  "overwrite": false,
+  "review_candidates": "review_candidates.csv",
+  "review_decisions": "q1_review.csv"
+}
