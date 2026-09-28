@@ -82,7 +82,7 @@ def build_trace(raw_text: str, bert: np.ndarray, video: Path, tokenizer_path: st
     pts = np.empty(0, dtype=np.float64)
     warning = "alignment_not_run"
     if align:
-        root = Path(q1_root) if q1_root else Path(__file__).resolve().parents[2] / "vendor" / "q1_code"
+        root = Path(q1_root) if q1_root else Path(__file__).resolve().parents[3] / "feature_extraction"
         if not (root / "scripts" / "q1_extract.py").is_file():
             raise FileNotFoundError(f"Q1 code not found: {root}")
         sys.path.insert(0, str(root))

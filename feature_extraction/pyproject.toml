@@ -1,7 +1,7 @@
 [project]
 name = "e-q1-submission"
 version = "1.0.0"
-description = "Q1 multimodal feature extraction and traceable word-level alignment"
+description = "Traceable word-level multimodal feature extraction"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "numpy>=2.0,<3",

@@ -1,7 +1,7 @@
 [project]
 name = "state-msa-q2"
 version = "1.0.0"
-description = "Competition Q2: state-aware multimodal sentiment prediction"
+description = "State-aware multimodal sentiment prediction"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "numpy==2.1.3",

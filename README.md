@@ -1,106 +1,100 @@
-# Robust Multimodal Sentiment under Missing Observations
+# Robust Multimodal Sentiment
 
-**A three-stage research project for multimodal sentiment prediction when text, audio, or visual evidence is incomplete.**
+**Sentiment prediction and evidence analysis when text, audio, or visual observations are incomplete.**
 
-[中文简介](#中文简介) · [Method](#method-at-a-glance) · [Repository](#repository-map) · [Reproducibility](#reproducibility)
+This research codebase explores two connected questions: how to predict sentiment from the modalities that are available, and how to inspect the model's evidence at modality and token levels. It contains a missing-aware predictor (**STATE-MSA**), an explanation layer (**TRACE-MSA**), and a separate pipeline for traceable feature extraction from video.
 
-This project was developed for a 2026 mathematical modeling challenge on multimodal sentiment analysis. It studies a practical question: **how should a sentiment model make predictions when one or more modalities are unavailable, and how can its evidence be traced back to the source?**
+[Architecture](#architecture) · [Results](#recorded-results) · [Get started](#get-started) · [Data contracts](docs/data-contracts.md) · [中文概览](#中文概览)
 
-The pipeline connects word-level feature extraction, missing-aware prediction, and post-hoc evidence analysis. Its central modeling view is to condition on both the observed features and their availability:
+## What is in the project
 
-$$
-P(Y \mid X_{\mathrm{observed}}, A),
-$$
+| Component | What it does | Start here |
+| --- | --- | --- |
+| **STATE-MSA** | Reads aligned text, audio, and visual features; uses availability masks for three-class sentiment and continuous intensity prediction | [`sentiment_model/`](sentiment_model/) |
+| **TRACE-MSA** | Explains a frozen STATE-MSA ensemble with three-modality Shapley values, local window deletion, and optional source-time mapping | [`explainability/`](explainability/) |
+| **Feature extraction** | Extracts word-level text, acoustic, and facial descriptors from video and records alignment quality | [`feature_extraction/`](feature_extraction/) |
 
-where $A$ records which modalities are available. This helps distinguish an unavailable modality from a measured neutral signal.
+### Design ideas
 
-## Method at a glance
+- **Availability is part of the input.** A missing modality is represented by a mask; zero-filled storage is not interpreted as a measured neutral signal.
+- **Evidence stays inspectable.** TRACE-MSA reports signed modality effects and local changes in prediction when short observed spans are removed.
+- **Uncertain alignment is visible.** The extraction pipeline records quality and availability, and source-time mappings remain approximate until reviewed.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    V[Video and transcript] --> F[Word-level feature extraction and alignment]
-    F --> X[Text, audio, visual features plus availability masks]
-    X --> S[STATE-MSA missing-aware predictor]
-    S --> P[Sentiment class and intensity]
-    S --> T[TRACE-MSA modality Shapley values]
-    T --> L[Local window deletion and source-time trace]
+    D[Aligned inputs<br/>BERT token IDs; audio 74; visual 35] --> M[STATE-MSA<br/>availability-aware ensemble]
+    M --> P[Class probabilities<br/>and sentiment intensity]
+    M --> E[TRACE-MSA<br/>modality and local evidence]
+    V[Video + transcript] --> X[Feature extraction<br/>768 / 50 / 40 per word]
+    X --> A[Traceable features<br/>and alignment metadata]
+    A -. feature adaptation needed .-> D
 ```
 
-### Q1 · Word-level feature pipeline
+The two feature paths have **different contracts**. STATE-MSA and TRACE-MSA operate on an existing 50-position aligned dataset with 74-dimensional audio and 35-dimensional visual features. The video extraction module produces 50-dimensional audio and 40-dimensional visual features per word. Its output is useful for extraction and traceability research, but it cannot be fed directly to the current predictor. The fields and shapes are in [Data contracts](docs/data-contracts.md).
 
-- Uses the supplied transcript as the text reference and extracts BERT token representations.
-- Extracts acoustic and facial-behavior signals from the media, then aggregates frame-level observations into word-level features.
-- Records alignment quality and modality availability explicitly. Unreliable alignment stays unavailable instead of being silently treated as valid evidence.
+## Recorded results
 
-### Q2 · STATE-MSA
+The original experiment record reports the following values on a 728-sample validation split:
 
-- Predicts negative, neutral, or positive sentiment and a continuous sentiment intensity.
-- Trains with modality-availability masks to examine partial-observation conditions.
-- Uses an ensemble of three random seeds and a conditional regression head for intensity.
-
-### Q3 · TRACE-MSA
-
-- Keeps the Q2 predictor frozen while explaining its predictions.
-- Computes exact Shapley values over the three modalities for the predicted-class log-odds.
-- Measures local evidence by deleting short contiguous token windows, then maps supported positions back to transcript and approximate media time when alignment permits.
-
-## Validation snapshot
-
-The existing project records a validation run on 728 examples. The values below are reported from that run; they have not been independently rerun as part of preparing this showcase repository.
-
-| Setting | Accuracy | Macro-F1 | MAE |
+| Evaluation | Accuracy | Macro-F1 | MAE |
 | --- | ---: | ---: | ---: |
-| Clean validation | 0.6429 | 0.6279 | 0.5660 |
-| Mean over 54 partial-modality conditions | 0.6135 | 0.5981 | 0.5917 |
+| Complete input | 0.6429 | 0.6279 | 0.5660 |
+| Mean of 54 controlled missing-modality conditions | 0.6135 | 0.5981 | 0.5917 |
 
-These numbers describe one project configuration and data split. They are not a claim of state-of-the-art performance. The challenge data, fitted scalers, and model checkpoints are not included here, so this repository alone cannot reproduce the values.
+These are **author-recorded validation results**, not independently rerun results from this public repository. The data, trained checkpoints, fitted scalers, and pretrained BERT weights are not distributed here. The 54 conditions are controlled masking tests; they do not cover every real-world reason a modality may be missing. See [Evaluation notes](docs/evaluation.md) for the setup and limits.
 
-## Repository map
+## Get started
 
-| Path | Contents |
-| --- | --- |
-| [`q1/`](q1/) | Feature extraction, temporal alignment, quality policy, and aggregation code |
-| [`q2/`](q2/) | STATE-MSA model, missing-modality handling, training and evaluation scripts |
-| [`q3/`](q3/) | TRACE-MSA attribution, local evidence analysis, and source-time mapping |
-| [`docs/method.md`](docs/method.md) | Concise method notes and design decisions |
+The components keep separate environments because feature extraction and model training have different dependencies. Python 3.12 and [`uv`](https://docs.astral.sh/uv/) are used for the two locked environments.
 
-The three stages retain separate Python environments because their dependencies differ. Q3 vendors small source subsets from Q1 and Q2 so that its attribution code can load the same predictor and alignment helpers; these are project source copies, not third-party repositories.
-
-## Reproducibility
-
-Each stage has its own environment declaration and command-line entry points. Start in the corresponding directory:
+### Explore the model code
 
 ```bash
-# Q1 environment
-cd q1
-uv sync --locked --python 3.12
-uv run --no-sync python -m unittest discover -s tests -v
-
-# Q2 environment (after supplying the required data and model assets)
-cd ../q2
+cd sentiment_model
 uv sync --locked
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+PYTHONPATH=src uv run --no-sync python -m q2.run --help
 ```
 
-Q1 additionally requires FFmpeg/FFprobe, OpenFace 2.2.0 and the referenced pretrained alignment assets. Q2 and Q3 require the challenge feature files, a compatible `bert-base-uncased` checkpoint, and trained model checkpoints. Q3's CLI and asset requirements are documented by:
+To train or evaluate, supply a compatible `aligned_50.pkl` dataset and local `bert-base-uncased` weights. The dataset is a trusted Pickle file with `train`, `valid`, and `test` splits. Inputs and commands are in the [model guide](sentiment_model/README.md).
+
+### Explore the explanation code
 
 ```bash
-cd ../q3
-python -m src.q3.run --help
+cd explainability
+../sentiment_model/.venv/bin/python -m src.q3.run --help
 ```
 
-Input datasets, pretrained weights, fitted scalers, competition predictions, and generated outputs are intentionally not included. Obtain data and model assets from their authorized sources, verify their provenance, and follow their licenses and access terms. Pickle and PyTorch checkpoint files should only be loaded when trusted.
+Full inference requires three compatible STATE-MSA checkpoints, their fitted scalers, the same BERT weights, and aligned samples. Optional video time mapping also needs the extraction dependencies. See the [explanation guide](explainability/README.md).
 
-## Scope and limitations
+### Extract features from video
 
-- The project evaluates defined missing-modality conditions; these do not establish robustness to every real-world missingness mechanism.
-- A zero-filled feature vector is only a storage placeholder. It does not mean the corresponding signal was observed as neutral.
-- Time mappings from automatic alignment are approximate. An attribution score is a model explanation, not proof of human causal reasoning.
-- Results depend on the challenge data, feature extraction, pretrained assets, and the recorded model configuration.
-- This repository has no license file. Reuse is not granted; contact the author for permission.
+The [feature extraction guide](feature_extraction/README.md) covers FFmpeg, OpenFace, pretrained assets, input layout, and quality review. Its output schema is separate from the model input schema above.
 
-## 中文简介
+## Repository layout
 
-本项目针对多模态情感识别中的模态缺失问题，整理了三阶段方案：Q1 从视频与文本提取并对齐词级特征；Q2 使用可用性掩码训练情感分类与强度预测模型；Q3 通过三模态 Shapley 归因、局部窗口删除和时间回溯解释模型输出。
+```text
+feature_extraction/  Video-to-word features, alignment, and quality review
+sentiment_model/    STATE-MSA model, masks, training, evaluation, and experiment scripts
+explainability/     TRACE-MSA attribution, evidence reporting, and source mapping
+docs/               Method, data contracts, and evaluation notes
+```
 
-仓库仅保留代码与方法说明，不包含比赛数据、预训练权重、训练检查点、拟合的标准化参数、预测结果或生成图表。README 中的验证数值来自已有项目记录，本次整理未重新运行。
+The Python entry points retain some `q1`, `q2`, `q3`, and `attachment` names from the original research run. These names identify the supported input and output contracts; the top-level organization follows the reusable project components. TRACE-MSA loads model and extraction helpers from the sibling directories without duplicate source trees.
+
+## Related projects
+
+[MMSA](https://github.com/thuiar/MMSA) is a broader multimodal sentiment analysis framework with model and dataset APIs. [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK) provides tooling for multimodal datasets and sequence alignment. Their clear module guides and data documentation informed this repository's presentation; the code here is a separate research implementation.
+
+## Project status and reuse
+
+This is a research code release, not a packaged inference service. Reproducing the recorded results requires authorized access to the original data and compatible model assets. Load Pickle files and PyTorch checkpoints only from trusted sources. The repository currently has no license; contact the author before reuse.
+
+The work began as a 2026 mathematical modeling project. The public repository presents its methods and code as a research project; dataset access and evaluation remain tied to the original experimental setup.
+
+## 中文概览
+
+本项目研究文本、语音和视觉信息不完整时的情感识别与模型解释。`sentiment_model/` 是带可用性掩码的 STATE-MSA 预测模型；`explainability/` 是对冻结模型进行模态归因和局部证据分析的 TRACE-MSA；`feature_extraction/` 提供可追溯的词级特征抽取与对齐。
+
+视频抽取模块与预测模型使用**不同的音视频特征维度**，目前不能直接串联。仓库不包含原始数据、模型权重或预测结果；表格数值来自原项目的验证记录，本次整理没有重新训练或复算。

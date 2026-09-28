@@ -94,7 +94,7 @@ class Ensemble:
                          device: str = "cpu", q2_root: str | Path | None = None) -> "Ensemble":
         if len(checkpoints) != 3:
             raise ValueError("Q3 requires exactly the three frozen Q2 checkpoints")
-        root = Path(q2_root) if q2_root else Path(__file__).resolve().parents[2] / "vendor" / "q2_code"
+        root = Path(q2_root) if q2_root else Path(__file__).resolve().parents[3] / "sentiment_model"
         if not (root / "src" / "q2" / "run.py").is_file():
             raise FileNotFoundError(f"Q2 code not found: {root}")
         sys.path.insert(0, str(root))

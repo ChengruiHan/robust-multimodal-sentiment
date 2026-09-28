@@ -26,3 +26,5 @@ results/
 # Local configuration and OS files
 .env
 .DS_Store
+feature_extraction/configs/q1.yaml
+feature_extraction/q1_output/
