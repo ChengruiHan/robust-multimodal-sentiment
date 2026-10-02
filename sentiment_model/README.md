@@ -38,4 +38,12 @@ bash scripts/train_final.sh
 
 This trains the three recorded seeds and their conditional intensity heads, then computes the validation condition grid. It requires the original compatible data and substantial compute. The repository does not include a pretrained release checkpoint.
 
-The `evaluate_frozen.sh` and `predict_attachment3.sh` scripts support the original experiment's file layout and require matching checkpoints and fitted scalers. Their names are retained for reproducibility. Validation figures in the root README are [recorded results](../docs/evaluation.md), not rerun results from this public checkout.
+The `evaluate_frozen.sh` and `predict_attachment3.sh` scripts support the original experiment's file layout and require matching checkpoints and fitted scalers. Their names are retained for reproducibility. Validation figures in the root README are [recorded results](../docs/evaluation.md), transcribed from the original project notes; the public checkout has no prediction records or rerun inference.
+
+## Reproduction and validation
+
+See the [CPU quick start](../README.md#quick-start),
+[full reproduction commands](../docs/REPRODUCE.md), and
+[external asset guide](../docs/DATA.md). The public checkout includes code and
+documentation; synthetic checks use no research records. Full component runs
+and optional evidence re-scoring require separately supplied private assets.

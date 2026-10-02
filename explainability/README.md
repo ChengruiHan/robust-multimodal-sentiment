@@ -25,3 +25,11 @@ Run from this directory with the environment created for [`sentiment_model/`](..
 The CLI requires three compatible model checkpoints in seed order 3407, 42, 2026; each checkpoint's directory must include its fitted `scaler.npz`. It also requires the same local BERT weights used for those checkpoints. Validation mode reads the original aligned split. The sample-inference mode still uses the original numbered `attachment4` file contract. See [Data contracts](../docs/data-contracts.md) before adapting it to another collection.
 
 For source-time mapping, `--align` additionally requires source videos, FFmpeg/FFprobe, WhisperX alignment assets, and the feature-extraction dependencies. An unresolved or automatic mapping is reported as such; a representative frame is not a frame-level causal explanation. The method and interpretation limits are in [Method](../docs/method.md).
+
+## Reproduction and validation
+
+See the [CPU quick start](../README.md#quick-start),
+[full reproduction commands](../docs/REPRODUCE.md), and
+[external asset guide](../docs/DATA.md). The public checkout includes code and
+documentation; synthetic checks use no research records. Full component runs
+and optional evidence re-scoring require separately supplied private assets.

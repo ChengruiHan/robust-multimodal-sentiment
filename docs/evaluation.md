@@ -1,21 +1,57 @@
-# Evaluation notes
+# Evaluation and interpretation
 
 ## Recorded setup
 
-The original project configuration used a three-seed STATE-MSA ensemble on an aligned multimodal dataset. It recorded a 728-sample validation split and evaluated complete input plus 54 controlled partial-modality conditions. The missingness grid combines six affected modality subsets, three proportions, and three contiguous positions. Including complete input gives 55 conditions.
+The original experiment used a three-seed M4 ensemble with a two-regime intensity
+head. Its grid has 55 conditions, each using the same 728 validation samples.
+One condition is complete input. The other 54 combine six affected modality
+subsets (T, A, V, T+A, T+V, A+V), three partial-deletion proportions (10%, 25%,
+40%), and front/middle/end contiguous locations.
 
 | Evaluation | Accuracy | Macro-F1 | MAE |
 | --- | ---: | ---: | ---: |
 | Complete input | 0.6429 | 0.6279 | 0.5660 |
-| Mean of 54 missing conditions | 0.6135 | 0.5981 | 0.5917 |
+| Unweighted mean of 54 missing conditions | 0.6135 | 0.5981 | 0.5917 |
 
-These values are transcribed from the original experiment notes. They were not independently recomputed while restructuring this public repository. The required dataset and trained assets are not published here, so the table is a **recorded experiment**, not a turnkey benchmark result.
+These values are transcribed from the original project notes. The public
+repository has no per-sample prediction records or pretrained task checkpoints,
+so this table is a recorded experiment rather than a turnkey benchmark result.
 
-## What the metrics do and do not show
+Macro-F1 gives equal weight to the three classes. MAE measures continuous
+intensity error. Pearson is also computed by the model evaluation code and
+measures linear association between target and prediction. The missing-condition
+mean averages separately computed metrics, excluding clean input; it does not
+pool the predictions. Masking concerns content positions and preserves at least
+one content position, rather than removing entire modalities.
 
-- Accuracy and Macro-F1 summarize three-class validation predictions; MAE summarizes intensity error.
-- The missing-condition row is an unweighted mean across the specified conditions. It is not the performance of a naturally missing deployment sample.
-- The validation split was used during model development. These figures should not be presented as untouched blind-test estimates.
-- TRACE-MSA's explanations use the frozen ensemble and masking interventions. Their scores describe model behavior, not ground-truth human evidence.
+## TRACE-MSA evaluation
 
-The model configuration is recorded in [`sentiment_model/config/final_model.json`](../sentiment_model/config/final_model.json). The code for evaluating the condition grid is in [`sentiment_model/src/q2/`](../sentiment_model/src/q2/).
+TRACE-MSA evaluates the frozen ensemble's modality coalitions and local window
+interventions. Its top-versus-random deletion fidelity and window-width analysis
+support inspecting model behavior. Their research records remain private.
+
+Optional [private re-scoring](REPRODUCE.md) can check numerical prediction
+metrics, confusion matrices and fidelity arithmetic when compatible external
+records are provided. It does not rerun model interventions or regenerate
+bootstrap confidence intervals and window-width analyses. Separately recorded
+inference paths may have numerical differences; retain their identities and
+avoid combining their outputs into one metric table.
+
+## Interpretation boundaries
+
+- The validation split was used for development and checkpoint selection;
+  these figures are not untouched blind-test estimates.
+- All conditions reuse the same samples and are correlated interventions.
+  Their mean does not estimate naturally missing deployment performance.
+- Missingness ratios count valid content positions, not seconds of video or
+  percentages of an entire padded sequence.
+- Shapley values and local deletions describe the model under chosen masks,
+  not ground-truth human evidence or causal sentiment effects.
+- Wider deletion windows remove more content. Larger effects alone do not
+  establish a better explanation method.
+- Automatic source-time mappings are approximate and require review.
+
+Original unlabelled sample adapters support predictions only; supervised
+metrics require labels. This release makes no new test-score or benchmark
+superiority claim. See [method](method.md) and the
+[model configuration](../sentiment_model/config/final_model.json).

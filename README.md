@@ -1,100 +1,153 @@
 # Robust Multimodal Sentiment
 
-**Sentiment prediction and evidence analysis when text, audio, or visual observations are incomplete.**
+Robust Multimodal Sentiment studies how to predict sentiment when text, audio,
+or visual observations are incomplete, and how to inspect the evidence used by
+a frozen predictor. **STATE-MSA** predicts three-class sentiment and continuous
+intensity; **TRACE-MSA** analyzes modality contributions and local evidence.
+A separate video pipeline extracts traceable word-level features.
 
-This research codebase explores two connected questions: how to predict sentiment from the modalities that are available, and how to inspect the model's evidence at modality and token levels. It contains a missing-aware predictor (**STATE-MSA**), an explanation layer (**TRACE-MSA**), and a separate pipeline for traceable feature extraction from video.
+This is a standalone research code and documentation release. Original datasets,
+media, numerical predictions, explanation records, pretrained weights and trained
+checkpoints remain external. CPU utilities support synthetic contract checks and
+optional re-scoring of separately supplied private records.
 
-[Architecture](#architecture) · [Results](#recorded-results) · [Get started](#get-started) · [Data contracts](docs/data-contracts.md) · [中文概览](#中文概览)
+Start with [how it works](#how-it-works), the [experimental workflow](#experimental-workflow),
+or the [CPU quick start](#quick-start). [中文说明](README.zh.md).
 
-## What is in the project
+## How it works
 
-| Component | What it does | Start here |
-| --- | --- | --- |
-| **STATE-MSA** | Reads aligned text, audio, and visual features; uses availability masks for three-class sentiment and continuous intensity prediction | [`sentiment_model/`](sentiment_model/) |
-| **TRACE-MSA** | Explains a frozen STATE-MSA ensemble with three-modality Shapley values, local window deletion, and optional source-time mapping | [`explainability/`](explainability/) |
-| **Feature extraction** | Extracts word-level text, acoustic, and facial descriptors from video and records alignment quality | [`feature_extraction/`](feature_extraction/) |
+A missing observation should not be interpreted as measured neutrality.
+STATE-MSA separates valid content from available observations, replaces missing
+text before BERT encoding, and masks unavailable audio/visual positions during
+fusion. The recorded predictor uses a frozen BERT encoder, an M4 availability-aware
+backbone, and a conditional two-regime intensity head. Its three seeds are
+3407, 42 and 2026. Class probabilities and clipped intensities are averaged
+independently across seeds.
 
-### Design ideas
-
-- **Availability is part of the input.** A missing modality is represented by a mask; zero-filled storage is not interpreted as a measured neutral signal.
-- **Evidence stays inspectable.** TRACE-MSA reports signed modality effects and local changes in prediction when short observed spans are removed.
-- **Uncertain alignment is visible.** The extraction pipeline records quality and availability, and source-time mappings remain approximate until reviewed.
-
-## Architecture
+TRACE-MSA evaluates all eight subsets of the three modalities for exact Shapley
+attribution. It measures signed effects on the predicted class's log-odds and on
+intensity, then deletes short windows to inspect local sensitivity. Optional
+transcript/video mapping links positions to approximate source times.
 
 ```mermaid
 flowchart LR
-    D[Aligned inputs<br/>BERT token IDs; audio 74; visual 35] --> M[STATE-MSA<br/>availability-aware ensemble]
-    M --> P[Class probabilities<br/>and sentiment intensity]
-    M --> E[TRACE-MSA<br/>modality and local evidence]
-    V[Video + transcript] --> X[Feature extraction<br/>768 / 50 / 40 per word]
-    X --> A[Traceable features<br/>and alignment metadata]
-    A -. feature adaptation needed .-> D
+  D[Aligned 50-position inputs: text IDs, audio 74, visual 35] --> S[STATE-MSA ensemble]
+  S --> P[Class probabilities and intensity]
+  S --> T[TRACE-MSA masking interventions]
+  T --> E[Modality attribution and local evidence]
+  V[Video and transcript] --> X[Traceable word-level extraction]
+  X --> F[Text 768, audio 50, visual 40; alignment metadata]
+  F -. feature adaptation and validation required .-> D
 ```
 
-The two feature paths have **different contracts**. STATE-MSA and TRACE-MSA operate on an existing 50-position aligned dataset with 74-dimensional audio and 35-dimensional visual features. The video extraction module produces 50-dimensional audio and 40-dimensional visual features per word. Its output is useful for extraction and traceability research, but it cannot be fed directly to the current predictor. The fields and shapes are in [Data contracts](docs/data-contracts.md).
+**The two feature paths have different contracts.** Video extraction produces
+50-dimensional audio and 40-dimensional visual features per word. The predictor
+expects 74/35-dimensional features at 50 aligned positions. These paths cannot
+be directly connected by padding or resampling. See [data contracts](docs/data-contracts.md)
+and [method](docs/method.md).
 
-## Recorded results
+## Experimental workflow
 
-The original experiment record reports the following values on a 728-sample validation split:
+1. **Audit the aligned data.** Validate the field-major train/valid/test layout,
+   derive content and availability masks, and fit audio/visual scaling only on
+   observed training positions.
+2. **Train three independent M4 backbones.** Keep BERT frozen, apply mixed
+   missingness during training, and select checkpoints using clean validation
+   plus six predetermined representative masking conditions.
+3. **Fit conditional intensity heads.** Freeze each backbone and class head;
+   train mild/strong regression experts and an intensity gate. The strong-state
+   label threshold is 1.5. Classification outputs remain independent of this head.
+4. **Freeze the ensemble and evaluate the full grid.** Test complete input and
+   six affected modality subsets, three deletion proportions and three contiguous
+   locations. The same 728 validation samples appear in every condition.
+5. **Explain the frozen predictor.** Compute modality effects, local window
+   deletion, top-versus-random deletion fidelity, and width sensitivity. Automatic
+   source-time mappings remain approximate until reviewed.
 
-| Evaluation | Accuracy | Macro-F1 | MAE |
-| --- | ---: | ---: | ---: |
-| Complete input | 0.6429 | 0.6279 | 0.5660 |
-| Mean of 54 controlled missing-modality conditions | 0.6135 | 0.5981 | 0.5917 |
+The [historical overview](docs/HISTORY.md) distinguishes the final two-regime
+head from other retained experimental variants. The extraction pipeline is an
+independent workflow, with its own feature schema and quality-review gate.
 
-These are **author-recorded validation results**, not independently rerun results from this public repository. The data, trained checkpoints, fitted scalers, and pretrained BERT weights are not distributed here. The 54 conditions are controlled masking tests; they do not cover every real-world reason a modality may be missing. See [Evaluation notes](docs/evaluation.md) for the setup and limits.
+## Recorded results and interpretation
 
-## Get started
+The original project notes report these historical validation metrics:
 
-The components keep separate environments because feature extraction and model training have different dependencies. Python 3.12 and [`uv`](https://docs.astral.sh/uv/) are used for the two locked environments.
+| Evaluation | Samples per condition | Accuracy | Macro-F1 | MAE |
+| --- | ---: | ---: | ---: | ---: |
+| Complete input | 728 | 0.6429 | 0.6279 | 0.5660 |
+| Mean of 54 controlled missing conditions | 728 | 0.6135 | 0.5981 | 0.5917 |
 
-### Explore the model code
+These are **author-recorded validation results**. The public release does not
+include predictions for independent re-scoring or assets for rerun inference.
+The 54 conditions are partial contiguous masking interventions, not independent
+datasets or complete modality loss. The split was used during model development
+and is **not a blind final test**.
+
+TRACE-MSA analyzes the frozen ensemble through modality attribution and local
+deletion. Its explanation outputs and evaluation records remain private.
+Explanations describe the predictor under chosen masks, not human or causal
+ground truth. [Evaluation notes](docs/evaluation.md) explain the setup and limits.
+
+## Quick start
+
+Use Python 3.11 or 3.12 from the repository root. These commands require only
+the Python standard library; their test fixtures are synthetic:
 
 ```bash
-cd sentiment_model
-uv sync --locked
-PYTHONPATH=src uv run --no-sync python -m q2.run --help
+python -m unittest discover -s tests -v
+python scripts/check_docs.py
 ```
 
-To train or evaluate, supply a compatible `aligned_50.pkl` dataset and local `bert-base-uncased` weights. The dataset is a trusted Pickle file with `train`, `valid`, and `test` splits. Inputs and commands are in the [model guide](sentiment_model/README.md).
+The root tests check metric arithmetic, malformed records, hash mismatch and
+external checkpoint-directory handling. Module contract suites use NumPy or
+PyTorch as described in [installation](docs/INSTALL.md). No research records
+are needed for these checks.
 
-### Explore the explanation code
+For an independently supplied private numerical evidence bundle, optional tools
+can verify hashes and re-score saved predictions:
 
 ```bash
-cd explainability
-../sentiment_model/.venv/bin/python -m src.q3.run --help
+python scripts/verify_release.py --root /absolute/path/to/private-evidence
+python scripts/rescore.py --root /absolute/path/to/private-evidence \
+  --output outputs/local_rescore.json
 ```
 
-Full inference requires three compatible STATE-MSA checkpoints, their fitted scalers, the same BERT weights, and aligned samples. Optional video time mapping also needs the extraction dependencies. See the [explanation guide](explainability/README.md).
+The expected private layout is documented in [DATA](docs/DATA.md).
+New reports write to ignored `outputs/`; choose a fresh output filename.
 
-### Extract features from video
+## Reproduce the workflow
 
-The [feature extraction guide](feature_extraction/README.md) covers FFmpeg, OpenFace, pretrained assets, input layout, and quality review. Its output schema is separate from the model input schema above.
+See [installation](docs/INSTALL.md), [experiment commands](docs/REPRODUCE.md),
+[external assets](docs/DATA.md), and [local validation](docs/LOCAL_VALIDATION.md).
+There are two paths: **CPU code verification** checks synthetic contracts;
+**experiment reproduction** requires compatible external data and assets.
+Optional numerical re-scoring also requires a separately supplied private bundle.
+Full model and extraction environments use Python 3.12 and
+separate `uv.lock` files because their PyTorch requirements differ.
 
-## Repository layout
+| Path | Contents |
+| --- | --- |
+| [sentiment_model/](sentiment_model/README.md) | STATE-MSA, training, masking grid and frozen prediction scripts |
+| [explainability/](explainability/README.md) | TRACE-MSA attribution, local evidence and source mapping |
+| [feature_extraction/](feature_extraction/README.md) | Video-to-word features, alignment and quality review |
+| [scripts/](scripts/) | Standard-library validation and optional private evidence tools |
+| [docs/](docs/) | Method, installation, reproduction, external assets and history |
 
-```text
-feature_extraction/  Video-to-word features, alignment, and quality review
-sentiment_model/    STATE-MSA model, masks, training, evaluation, and experiment scripts
-explainability/     TRACE-MSA attribution, evidence reporting, and source mapping
-docs/               Method, data contracts, and evaluation notes
-```
-
-The Python entry points retain some `q1`, `q2`, `q3`, and `attachment` names from the original research run. These names identify the supported input and output contracts; the top-level organization follows the reusable project components. TRACE-MSA loads model and extraction helpers from the sibling directories without duplicate source trees.
-
-## Related projects
-
-[MMSA](https://github.com/thuiar/MMSA) is a broader multimodal sentiment analysis framework with model and dataset APIs. [CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK) provides tooling for multimodal datasets and sequence alignment. Their clear module guides and data documentation informed this repository's presentation; the code here is a separate research implementation.
+Original `q1`, `q2`, `q3`, `RAMP`, and attachment names remain in supported
+entry points and checkpoint contracts. This release keeps those interfaces
+compatible while organizing the public project around its reusable components.
 
 ## Project status and reuse
 
-This is a research code release, not a packaged inference service. Reproducing the recorded results requires authorized access to the original data and compatible model assets. Load Pickle files and PyTorch checkpoints only from trusted sources. The repository currently has no license; contact the author before reuse.
+The organization follows [OptiCall](https://github.com/ChengruiHan/OptiCall)'s
+method → workflow → evidence → CPU verification → full reproduction path.
+[MMSA](https://github.com/thuiar/MMSA) and
+[CMU-MultimodalSDK](https://github.com/CMU-MultiComp-Lab/CMU-MultimodalSDK)
+provide related multimodal research tooling.
 
-The work began as a 2026 mathematical modeling project. The public repository presents its methods and code as a research project; dataset access and evaluation remain tied to the original experimental setup.
-
-## 中文概览
-
-本项目研究文本、语音和视觉信息不完整时的情感识别与模型解释。`sentiment_model/` 是带可用性掩码的 STATE-MSA 预测模型；`explainability/` 是对冻结模型进行模态归因和局部证据分析的 TRACE-MSA；`feature_extraction/` 提供可追溯的词级特征抽取与对齐。
-
-视频抽取模块与预测模型使用**不同的音视频特征维度**，目前不能直接串联。仓库不包含原始数据、模型权重或预测结果；表格数值来自原项目的验证记录，本次整理没有重新训练或复算。
+This is a research release. Public checkpoint downloads and a validated adapter
+between the two feature schemas are not provided. Use trusted Pickle and
+checkpoint files from authorized sources. The repository has no license;
+contact the author before reuse. The project began as a mathematical modeling
+study; the released documents describe the methods and evidence independently
+of the original numbered submission layout.
