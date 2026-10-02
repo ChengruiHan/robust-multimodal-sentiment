@@ -12,7 +12,7 @@ OUT=${OUT:-$ROOT/outputs/attachment3}
 test -x "$PYTHON"
 test -f "$BERT_DIR/model.safetensors"
 test -d "$ATTACHMENT3_DIR"
-"$PYTHON" "$ROOT/scripts/check_assets.py" --root "$ROOT" --bert-dir "$BERT_DIR"
+"$PYTHON" "$ROOT/scripts/check_assets.py" --root "$ROOT" --bert-dir "$BERT_DIR" --weights-dir "$WEIGHTS_DIR"
 if [[ -e "$OUT" ]]; then
     echo "Output already exists: $OUT" >&2
     exit 1

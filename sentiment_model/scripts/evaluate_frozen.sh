@@ -14,7 +14,7 @@ case "$SPLIT" in valid|test) ;; *) echo "SPLIT must be valid or test" >&2; exit 
 test -f "$DATA"
 test -f "$BERT_DIR/model.safetensors"
 test -x "$PYTHON"
-"$PYTHON" "$ROOT/scripts/check_assets.py" --root "$ROOT" --bert-dir "$BERT_DIR"
+"$PYTHON" "$ROOT/scripts/check_assets.py" --root "$ROOT" --bert-dir "$BERT_DIR" --weights-dir "$WEIGHTS_DIR"
 if [[ -e "$OUT" ]]; then
     echo "Output already exists: $OUT" >&2
     exit 1

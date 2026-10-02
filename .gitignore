@@ -28,3 +28,11 @@ results/
 .DS_Store
 feature_extraction/configs/q1.yaml
 feature_extraction/q1_output/
+.coverage
+build/
+dist/
+*.egg-info/
+
+# Private numerical evidence bundles
+INPUTS.sha256.json
+PROVENANCE.json

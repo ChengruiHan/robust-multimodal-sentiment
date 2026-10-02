@@ -7,9 +7,6 @@ from pathlib import Path
 import re
 import subprocess
 
-from openpyxl import load_workbook
-
-
 TOKEN_RE = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)*|\d+(?:[.,]\d+)*")
 
 
@@ -30,6 +27,8 @@ def safe_id(video_id: str, clip_id: str) -> str:
 
 
 def load_official_labels(path: Path) -> list[dict]:
+    from openpyxl import load_workbook
+
     wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb.active
     rows = ws.iter_rows(values_only=True)

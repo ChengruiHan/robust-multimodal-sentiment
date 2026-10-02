@@ -94,10 +94,11 @@ class Q3Contract(unittest.TestCase):
 
     def test_attachment4_real_schema(self):
         path = ROOT.parent.parent / "E题数据/附件4-可解释专项视频样本与特征文件/附件4-可解释专项视频样本与特征文件/对齐版本/01.pkl"
-        if path.exists():
-            item, text = read_attachment(path)
-            self.assertEqual(item["id"][0], "01")
-            self.assertIn("Replacing", text)
+        if not path.exists():
+            self.skipTest("original attachment-4 sample is not available")
+        item, text = read_attachment(path)
+        self.assertEqual(item["id"][0], "01")
+        self.assertIn("Replacing", text)
 
 
 if __name__ == "__main__":
